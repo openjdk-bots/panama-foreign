@@ -1654,6 +1654,9 @@ void G1CollectedHeap::stop() {
   // that are destroyed during shutdown.
   _cr->stop();
   _service_thread->stop();
+  VM_G1StopMarking op;
+  VMThread::execute(&op);
+
   _cm->stop();
 }
 
@@ -2723,13 +2726,14 @@ void G1CollectedHeap::do_collection_pause_at_safepoint(size_t allocation_word_si
 
   _bytes_used_during_gc = 0;
 
-  _cm->fully_initialize();
-
   policy()->decide_on_concurrent_start_pause();
   // Record whether this pause may need to trigger a concurrent operation. Later,
   // when we signal the G1ConcurrentMarkThread, the collector state has already
   // been reset for the next pause.
   bool should_start_concurrent_mark_operation = collector_state()->is_in_concurrent_start_gc();
+  if (should_start_concurrent_mark_operation) {
+    _cm->fully_initialize();
+  }
 
   // Perform the collection.
   G1YoungCollector collector(gc_cause(), allocation_word_size);
